@@ -39,8 +39,8 @@ jobs:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
           FTP_REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
         run: |
-          # Create lftp script
-          cat > /tmp/ftp-upload.sh << 'FTPEOF'
+          # Create lftp script with environment variables expanded
+          cat > /tmp/ftp-upload.sh << FTPEOF
           set ftp:ssl-allow no
           set ftp:passive-mode on
           set net:timeout 30
@@ -60,6 +60,8 @@ jobs:
           
           bye
           FTPEOF
+          
+          echo "Starting FTP upload..."
           
           # Run lftp with the script
           lftp -f /tmp/ftp-upload.sh
