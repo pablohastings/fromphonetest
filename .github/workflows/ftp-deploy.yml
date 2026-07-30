@@ -27,23 +27,44 @@ jobs:
           cat js/app.js >> js/app.js.tmp
           mv js/app.js.tmp js/app.js
       
-      - name: Deploy to FTP server
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ${{ secrets.FTP_REMOTE_DIR }}/
-          local-dir: ./
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/upload.ps1
-            **/upload.sh
-            **/upload_ftp.py
-            **/ftp.config.example.json
-            **/README.md
+      - name: Install lftp
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lftp
+      
+      - name: Deploy to FTP server with lftp
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_REMOTE_DIR: ${{ secrets.FTP_REMOTE_DIR }}
+        run: |
+          # Create lftp script
+          cat > /tmp/ftp-upload.sh << 'FTPEOF'
+          set ftp:ssl-allow no
+          set ftp:passive-mode on
+          set net:timeout 30
+          set net:max-retries 3
+          set net:reconnect-interval-base 5
+          
+          open -u $FTP_USER,$FTP_PASSWORD $FTP_HOST
+          
+          # Create directories
+          mkdir -p $FTP_REMOTE_DIR/css
+          mkdir -p $FTP_REMOTE_DIR/js
+          
+          # Upload files
+          put -O $FTP_REMOTE_DIR index.html
+          put -O $FTP_REMOTE_DIR/css css/style.css
+          put -O $FTP_REMOTE_DIR/js js/app.js
+          
+          bye
+          FTPEOF
+          
+          # Run lftp with the script
+          lftp -f /tmp/ftp-upload.sh
+          
+          echo "✅ Upload complete!"
       
       - name: Deployment complete
         run: |
