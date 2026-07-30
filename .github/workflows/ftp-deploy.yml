@@ -1,0 +1,51 @@
+name: Deploy to FTP
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Generate build stamp
+        id: stamp
+        run: |
+          STAMP=$(date +"%Y%m%d-%H%M%S")
+          echo "stamp=$STAMP" >> $GITHUB_OUTPUT
+          echo "Build stamp: $STAMP"
+      
+      - name: Inject build stamp into app.js
+        run: |
+          echo "window.__FTP_BUILD__ = '${{ steps.stamp.outputs.stamp }}';" > js/app.js.tmp
+          cat js/app.js >> js/app.js.tmp
+          mv js/app.js.tmp js/app.js
+      
+      - name: Deploy to FTP server
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_REMOTE_DIR }}/
+          local-dir: ./
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/upload.ps1
+            **/upload.sh
+            **/upload_ftp.py
+            **/ftp.config.example.json
+            **/README.md
+      
+      - name: Deployment complete
+        run: |
+          echo "✅ Deployment successful!"
+          echo "Build stamp: ${{ steps.stamp.outputs.stamp }}"
