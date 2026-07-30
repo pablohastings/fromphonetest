@@ -1,0 +1,4 @@
+ftp.config.json
+*.log
+.DS_Store
+Thumbs.db
